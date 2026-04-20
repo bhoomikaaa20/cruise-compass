@@ -151,10 +151,10 @@ const CruiseDetails = () => {
               <div className="flex items-center gap-3 flex-wrap">
                 <Stop label={cruise.departure_port} highlight />
                 {cruise.route.map((stop, i) => (
-                  <>
-                    <Wave key={`w-${i}`} />
-                    <Stop key={`s-${i}`} label={stop} />
-                  </>
+                  <span key={`stop-${i}`} className="contents">
+                    <Wave />
+                    <Stop label={stop} />
+                  </span>
                 ))}
                 <Wave />
                 <Stop label={cruise.return_port} highlight />
