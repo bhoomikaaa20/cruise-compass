@@ -190,7 +190,10 @@ const Admin = () => {
   };
 
   const updateBooking = async (id: string, status: string) => {
-    const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+    const { error } = await supabase
+      .from("bookings")
+      .update({ status: status as "confirmed" | "cancelled" | "pending" })
+      .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Booking updated");
     loadAll();

@@ -98,9 +98,9 @@ const CruiseDetails = () => {
       cabin_class: cabin,
       travel_date: travelDate,
       total_price: totalPrice,
-      contact_email: user.email,
-      status: "confirmed",
-    });
+      contact_email: user.email ?? null,
+      status: "confirmed" as const,
+    } as never);
     setBooking(false);
     if (error) {
       toast.error(error.message);
