@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,51 +17,53 @@ const authSchema = z.object({
 const Auth = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, login, register } = useAuth();
+
   const [mode, setMode] = useState<"signin" | "signup">(
     params.get("mode") === "signup" ? "signup" : "signin"
   );
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 🔹 Redirect if already logged in
   useEffect(() => {
     if (user) navigate("/");
   }, [user, navigate]);
 
+  // 🔹 Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const parsed = authSchema.safeParse({
       email,
       password,
       displayName: mode === "signup" ? displayName : undefined,
     });
+
     if (!parsed.success) {
       toast.error(parsed.error.errors[0].message);
       return;
     }
+
     setLoading(true);
+
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: { display_name: displayName },
-          },
-        });
-        if (error) throw error;
-        toast.success("Welcome aboard! You're signed in.");
+        await register(displayName, email, password);
+        toast.success("Account created! Please sign in.");
+        setMode("signin"); // 👈 switch UI to login
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("Welcome back");
+        await login(email, password);
+        toast.success("Welcome back!");
+
       }
-      navigate("/");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Authentication failed";
+
+
+    } catch (err: any) {
+      const msg = err?.response?.data?.msg || "Authentication failed";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -71,6 +72,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] grid lg:grid-cols-2">
+      {/* LEFT SIDE */}
       <div className="hidden lg:flex bg-gradient-hero relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,_white_0%,_transparent_60%)]" />
         <div className="relative max-w-md text-primary-foreground space-y-6 animate-fade-in">
@@ -79,11 +81,12 @@ const Auth = () => {
             Your next horizon awaits.
           </h1>
           <p className="text-primary-foreground/80 text-lg">
-            Discover handpicked voyages across the world's most beautiful coastlines.
+            Discover beautiful cruise journeys around the world.
           </p>
         </div>
       </div>
 
+      {/* RIGHT SIDE */}
       <div className="flex items-center justify-center p-6 sm:p-12 bg-gradient-sea">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8 flex justify-center">
@@ -91,11 +94,15 @@ const Auth = () => {
               <Anchor className="size-6 text-primary-foreground" />
             </div>
           </div>
+
           <h2 className="font-display text-4xl mb-2">
             {mode === "signup" ? "Create account" : "Welcome back"}
           </h2>
+
           <p className="text-muted-foreground mb-8">
-            {mode === "signup" ? "Start your journey with Marea." : "Sign in to manage your voyages."}
+            {mode === "signup"
+              ? "Start your journey."
+              : "Sign in to continue."}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,10 +118,10 @@ const Auth = () => {
                 />
               </div>
             )}
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label>Email</Label>
               <Input
-                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -122,10 +129,10 @@ const Auth = () => {
                 required
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label>Password</Label>
               <Input
-                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -133,23 +140,34 @@ const Auth = () => {
                 required
               />
             </div>
-            <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Please wait..." : mode === "signup" ? "Create account" : "Sign in"}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading
+                ? "Please wait..."
+                : mode === "signup"
+                  ? "Create account"
+                  : "Sign in"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? "Already have an account?" : "New to Marea?"}{" "}
+            {mode === "signup"
+              ? "Already have an account?"
+              : "New here?"}{" "}
             <button
-              type="button"
-              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+              onClick={() =>
+                setMode(mode === "signup" ? "signin" : "signup")
+              }
               className="text-primary font-medium hover:underline"
             >
               {mode === "signup" ? "Sign in" : "Create one"}
             </button>
           </p>
 
-          <Link to="/" className="block mt-8 text-center text-sm text-muted-foreground hover:text-primary">
+          <Link
+            to="/"
+            className="block mt-8 text-center text-sm text-muted-foreground hover:text-primary"
+          >
             ← Back to cruises
           </Link>
         </div>

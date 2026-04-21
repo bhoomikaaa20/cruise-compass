@@ -1,35 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Anchor, Calendar, MapPin, Ship, Users, X } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { toast } from "sonner";
+import axios from "axios";
 
-type BookingRow = {
-  id: string;
-  passenger_count: number;
-  cabin_class: string;
-  travel_date: string;
-  total_price: number;
-  status: string;
-  created_at: string;
-  cruises: {
-    id: string;
-    name: string;
-    destination: string;
-    image_url: string | null;
-    departure_port: string;
-    return_port: string;
-    duration_nights: number;
-  } | null;
-};
+type BookingRow = any;
 
 const MyBookings = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,27 +23,66 @@ const MyBookings = () => {
 
   useEffect(() => {
     if (!user) return;
+
     const load = async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*, cruises(id, name, destination, image_url, departure_port, return_port, duration_nights)")
-        .order("travel_date", { ascending: true });
-      if (error) toast.error(error.message);
-      setBookings((data as unknown as BookingRow[]) ?? []);
+      try {
+        const token = localStorage.getItem("token");
+
+        const res = await axios.get(
+          "http://localhost:5000/api/bookings/my",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        setBookings(res.data ?? []);
+      } catch {
+        toast.error("Failed to load bookings");
+      }
+
       setLoading(false);
     };
+
     load();
   }, [user]);
 
+  // 🔹 CANCEL
   const cancel = async (id: string) => {
-    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Booking cancelled");
-    setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "cancelled" } : x)));
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.put(
+        `http://localhost:5000/api/bookings/${id}/cancel`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      toast.success("Booking cancelled");
+
+      setBookings((b) =>
+        b.map((x) =>
+          x._id === id ? { ...x, status: "cancelled" } : x
+        )
+      );
+    } catch {
+      toast.error("Cancel failed");
+    }
   };
 
-  const upcoming = bookings.filter((b) => b.status !== "cancelled" && isAfter(parseISO(b.travel_date), new Date()));
+  const upcoming = bookings.filter(
+    (b) =>
+      b.status !== "cancelled" &&
+      isAfter(parseISO(b.travel_date), new Date())
+  );
+
   const past = bookings.filter((b) => !upcoming.includes(b));
+
 
   return (
     <div className="container py-12">
@@ -110,9 +133,8 @@ const Section = ({
       {bookings.map((b) => (
         <div
           key={b.id}
-          className={`bg-gradient-card border border-border rounded-2xl p-5 shadow-soft flex flex-col sm:flex-row gap-5 ${
-            muted ? "opacity-70" : ""
-          }`}
+          className={`bg-gradient-card border border-border rounded-2xl p-5 shadow-soft flex flex-col sm:flex-row gap-5 ${muted ? "opacity-70" : ""
+            }`}
         >
           <div className="sm:w-40 h-32 sm:h-auto bg-gradient-hero rounded-xl overflow-hidden flex-shrink-0">
             {b.cruises?.image_url ? (
@@ -131,11 +153,10 @@ const Section = ({
                   <MapPin className="size-3.5" /> {b.cruises?.destination}
                 </p>
               </div>
-              <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                b.status === "confirmed" ? "bg-primary/10 text-primary"
+              <span className={`text-xs px-3 py-1 rounded-full font-medium ${b.status === "confirmed" ? "bg-primary/10 text-primary"
                 : b.status === "cancelled" ? "bg-destructive/10 text-destructive"
-                : "bg-accent/20 text-accent-foreground"
-              }`}>
+                  : "bg-accent/20 text-accent-foreground"
+                }`}>
                 {b.status}
               </span>
             </div>

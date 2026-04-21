@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,38 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Anchor, Edit, Plus, Ship, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import axios from "axios";
 
-type Cruise = {
-  id: string;
-  name: string;
-  ship_name: string | null;
-  destination: string;
-  description: string | null;
-  duration_nights: number;
-  price_per_person: number;
-  departure_port: string;
-  return_port: string;
-  route: string[];
-  departure_date: string;
-  return_date: string;
-  capacity: number;
-  available_spots: number;
-  facilities: string[];
-  image_url: string | null;
-  is_active: boolean;
-};
+const API = "http://localhost:5000/api/admin";
 
-type AdminBooking = {
-  id: string;
-  passenger_count: number;
-  cabin_class: string;
-  travel_date: string;
-  total_price: number;
-  status: string;
-  contact_email: string | null;
-  cruises: { name: string } | null;
-  profiles: { display_name: string | null; email: string | null } | null;
-};
+type Cruise = any;
+type AdminBooking = any;
 
 const emptyForm = {
   name: "",
@@ -64,20 +37,28 @@ const emptyForm = {
 const Admin = () => {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
   const [cruises, setCruises] = useState<Cruise[]>([]);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false); // REQUIRED (no UI change)
 
+  // ✅ AUTH CHECK (same behavior, just safer)
   useEffect(() => {
     if (authLoading) return;
-    if (!user) navigate("/auth");
-    else if (!isAdmin) {
+
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (!isAdmin) {
       toast.error("Admin access required");
       navigate("/");
+      return;
     }
   }, [user, isAdmin, authLoading, navigate]);
 
@@ -86,31 +67,35 @@ const Admin = () => {
     loadAll();
   }, [isAdmin]);
 
+  // ✅ LOAD DATA (REPLACED SUPABASE)
   const loadAll = async () => {
     setLoading(true);
-    const [{ data: cs }, { data: bs }] = await Promise.all([
-      supabase.from("cruises").select("*").order("created_at", { ascending: false }),
-      supabase
-        .from("bookings")
-        .select("*, cruises(name), profiles!bookings_user_id_fkey(display_name, email)")
-        .order("created_at", { ascending: false }),
-    ]);
-    setCruises((cs as Cruise[]) ?? []);
-    // profiles join may fail if FK alias isn't set; fall back to plain
-    if (!bs) {
-      const { data: bs2 } = await supabase
-        .from("bookings")
-        .select("*, cruises(name)")
-        .order("created_at", { ascending: false });
-      setBookings((bs2 as unknown as AdminBooking[]) ?? []);
-    } else {
-      setBookings((bs as unknown as AdminBooking[]) ?? []);
+
+    const token = localStorage.getItem("token");
+
+    try {
+      const [cruiseRes, bookingRes] = await Promise.all([
+        axios.get(`${API}/cruises`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${API}/bookings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      setCruises(cruiseRes.data || []);
+      setBookings(bookingRes.data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load data");
     }
+
     setLoading(false);
   };
 
-  const startEdit = (c: Cruise) => {
-    setEditingId(c.id);
+  const startEdit = (c: any) => {
+    setEditingId(c._id);
+
     setForm({
       name: c.name,
       ship_name: c.ship_name ?? "",
@@ -120,13 +105,14 @@ const Admin = () => {
       price_per_person: Number(c.price_per_person),
       departure_port: c.departure_port,
       return_port: c.return_port,
-      route: c.route.join(", "),
+      route: (c.route || []).join(", "),
       departure_date: c.departure_date,
       return_date: c.return_date,
       capacity: c.capacity,
-      facilities: c.facilities.join(", "),
+      facilities: (c.facilities || []).join(", "),
       image_url: c.image_url ?? "",
     });
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -135,26 +121,18 @@ const Admin = () => {
     setForm(emptyForm);
   };
 
-  const handleImage = async (file: File) => {
-    if (!user) return;
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("cruise-images").upload(path, file);
-    if (error) {
-      toast.error(error.message);
-      setUploading(false);
-      return;
-    }
-    const { data } = supabase.storage.from("cruise-images").getPublicUrl(path);
-    setForm((f) => ({ ...f, image_url: data.publicUrl }));
-    setUploading(false);
-    toast.success("Image uploaded");
+  // ❌ Supabase storage removed (UI unchanged)
+  const handleImage = async () => {
+    toast.error("Use image URL instead");
   };
 
+  // ✅ SAVE (CREATE / UPDATE)
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
+    const token = localStorage.getItem("token");
+
     const payload = {
       name: form.name.trim(),
       ship_name: form.ship_name.trim() || null,
@@ -171,35 +149,59 @@ const Admin = () => {
       facilities: form.facilities.split(",").map((s) => s.trim()).filter(Boolean),
       image_url: form.image_url.trim() || null,
     };
-    const { error } = editingId
-      ? await supabase.from("cruises").update(payload).eq("id", editingId)
-      : await supabase.from("cruises").insert({ ...payload, available_spots: payload.capacity });
+
+    try {
+      if (editingId) {
+        await axios.put(`${API}/cruises/${editingId}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await axios.post(`${API}/cruises`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      toast.success(editingId ? "Cruise updated" : "Cruise created");
+      reset();
+      loadAll();
+    } catch {
+      toast.error("Error saving cruise");
+    }
+
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(editingId ? "Cruise updated" : "Cruise created");
-    reset();
-    loadAll();
   };
 
+  // ✅ DELETE
   const remove = async (id: string) => {
-    if (!confirm("Delete this cruise? Existing bookings will also be removed.")) return;
-    const { error } = await supabase.from("cruises").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Cruise deleted");
-    loadAll();
+    if (!confirm("Delete this cruise?")) return;
+
+    const token = localStorage.getItem("token");
+
+    try {
+      await axios.delete(`${API}/cruises/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      toast.success("Cruise deleted");
+      loadAll();
+    } catch {
+      toast.error("Delete failed");
+    }
   };
 
+  // ✅ UPDATE BOOKING
   const updateBooking = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: status as "confirmed" | "cancelled" | "pending" })
-      .eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Booking updated");
-    loadAll();
+    try {
+      await axios.put(`${API}/bookings/${id}`, { status });
+      toast.success("Booking updated");
+      loadAll();
+    } catch {
+      toast.error("Update failed");
+    }
   };
 
-  if (!isAdmin) return null;
+  if (authLoading) return <div className="container py-12">Loading...</div>;
+  if (!user || !isAdmin) return null;
 
   return (
     <div className="container py-12">
@@ -340,11 +342,10 @@ const Admin = () => {
                       {b.profiles?.display_name ?? b.contact_email ?? "Guest"} · {b.passenger_count} pax · {b.cabin_class} · {format(new Date(b.travel_date), "MMM d, yyyy")} · ${Number(b.total_price).toLocaleString()}
                     </p>
                   </div>
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                    b.status === "confirmed" ? "bg-primary/10 text-primary"
+                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${b.status === "confirmed" ? "bg-primary/10 text-primary"
                     : b.status === "cancelled" ? "bg-destructive/10 text-destructive"
-                    : "bg-accent/20 text-accent-foreground"
-                  }`}>{b.status}</span>
+                      : "bg-accent/20 text-accent-foreground"
+                    }`}>{b.status}</span>
                   <div className="flex gap-2">
                     {b.status !== "confirmed" && <Button size="sm" variant="outline" onClick={() => updateBooking(b.id, "confirmed")}>Confirm</Button>}
                     {b.status !== "cancelled" && <Button size="sm" variant="ghost" onClick={() => updateBooking(b.id, "cancelled")} className="text-destructive">Cancel</Button>}

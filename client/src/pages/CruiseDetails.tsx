@@ -1,35 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Anchor, Calendar, MapPin, Ship, Users, Utensils, Wifi, Sparkles } from "lucide-react";
+import { Anchor, Calendar, MapPin, Ship, Users, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import axios from "axios";
 
-type CruiseRow = {
-  id: string;
-  name: string;
-  ship_name: string | null;
-  destination: string;
-  description: string | null;
-  duration_nights: number;
-  price_per_person: number;
-  departure_port: string;
-  return_port: string;
-  route: string[];
-  departure_date: string;
-  return_date: string;
-  capacity: number;
-  available_spots: number;
-  facilities: string[];
-  image_url: string | null;
-  gallery: string[];
-};
+type CruiseRow = any;
 
 const CABIN_MULT: Record<string, number> = {
   interior: 1,
@@ -42,6 +24,7 @@ const CruiseDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [cruise, setCruise] = useState<CruiseRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [passengers, setPassengers] = useState(2);
@@ -49,14 +32,19 @@ const CruiseDetails = () => {
   const [travelDate, setTravelDate] = useState("");
   const [booking, setBooking] = useState(false);
 
+  // 🔹 LOAD CRUISE
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase.from("cruises").select("*").eq("id", id).maybeSingle();
-      if (error) toast.error(error.message);
-      setCruise(data as CruiseRow | null);
-      if (data) setTravelDate((data as CruiseRow).departure_date);
+      try {
+        const res = await axios.get(`http://localhost:5000/api/cruises/${id}`);
+        setCruise(res.data);
+        if (res.data) setTravelDate(res.data.departure_date);
+      } catch {
+        toast.error("Failed to load cruise");
+      }
       setLoading(false);
     };
+
     if (id) load();
   }, [id]);
 
@@ -79,35 +67,49 @@ const CruiseDetails = () => {
     );
   }
 
-  const totalPrice = Number(cruise.price_per_person) * passengers * CABIN_MULT[cabin];
+  const totalPrice =
+    Number(cruise.price_per_person) * passengers * CABIN_MULT[cabin];
 
+  // 🔹 BOOKING
   const handleBook = async () => {
     if (!user) {
       navigate(`/auth?mode=signup`);
       return;
     }
+
     if (passengers > cruise.available_spots) {
       toast.error(`Only ${cruise.available_spots} spots remaining`);
       return;
     }
+
     setBooking(true);
-    const { error } = await supabase.from("bookings").insert({
-      user_id: user.id,
-      cruise_id: cruise.id,
-      passenger_count: passengers,
-      cabin_class: cabin,
-      travel_date: travelDate,
-      total_price: totalPrice,
-      contact_email: user.email ?? null,
-      status: "confirmed" as const,
-    } as never);
-    setBooking(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.post(
+        "http://localhost:5000/api/bookings",
+        {
+          cruiseId: cruise._id,
+          passengers,
+          cabin,
+          travelDate,
+          totalPrice
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      toast.success("Booking confirmed! Bon voyage 🚢");
+      navigate("/bookings");
+    } catch {
+      toast.error("Booking failed");
     }
-    toast.success("Booking confirmed! Bon voyage 🚢");
-    navigate("/bookings");
+
+    setBooking(false);
   };
 
   return (
@@ -256,9 +258,8 @@ const CruiseDetails = () => {
 
 const Stop = ({ label, highlight }: { label: string; highlight?: boolean }) => (
   <div
-    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
-      highlight ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-    }`}
+    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${highlight ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+      }`}
   >
     <MapPin className="size-3.5" /> {label}
   </div>

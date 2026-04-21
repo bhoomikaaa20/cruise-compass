@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import CruiseCard, { Cruise } from "@/components/CruiseCard";
 import { Button } from "@/components/ui/button";
 import { Anchor, Compass, ShieldCheck, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import axios from "axios";
 
 const Index = () => {
   const [cruises, setCruises] = useState<Cruise[]>([]);
@@ -12,14 +12,15 @@ const Index = () => {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from("cruises")
-        .select("*")
-        .eq("is_active", true)
-        .order("departure_date", { ascending: true });
-      setCruises((data as Cruise[]) ?? []);
+      try {
+        const res = await axios.get("http://localhost:5000/api/cruises");
+        setCruises(res.data ?? []);
+      } catch (err) {
+        console.error(err);
+      }
       setLoading(false);
     };
+
     load();
   }, []);
 
@@ -108,8 +109,8 @@ const Index = () => {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cruises.map((c) => (
-              <CruiseCard key={c.id} cruise={c} />
+            {cruises.map((c: any) => (
+              <CruiseCard key={c._id} cruise={c} />
             ))}
           </div>
         )}
