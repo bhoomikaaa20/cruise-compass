@@ -2,6 +2,7 @@ import express from "express";
 import Cruise from "../models/Cruise";
 import Booking from "../models/Booking";
 import { verifyToken, AuthRequest } from "../middleware/authMiddleware";
+import { upload } from "../middleware/upload";
 
 const router = express.Router();
 
@@ -95,4 +96,15 @@ router.put("/bookings/:id", verifyToken, async (req: AuthRequest, res) => {
         res.status(500).json({ msg: "Update failed" });
     }
 });
+
+
+router.post(
+    "/upload",
+    verifyToken,
+    upload.single("image"),
+    (req, res) => {
+        const fileUrl = `http://localhost:5000/uploads/${req.file?.filename}`;
+        res.json({ url: fileUrl });
+    }
+);
 export default router;

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import { verifyToken, AuthRequest } from "../middleware/authMiddleware";
+import { upload } from "../middleware/upload";
 
 const router = express.Router();
 
@@ -53,6 +54,12 @@ router.post("/login", async (req: Request, res: Response) => {
     } catch (err) {
         res.status(500).json(err);
     }
+});
+
+
+router.post("/upload", verifyToken, upload.single("image"), (req, res) => {
+    const fileUrl = `http://localhost:5000/uploads/${req.file?.filename}`;
+    res.json({ url: fileUrl });
 });
 
 // GET CURRENT USER

@@ -122,8 +122,33 @@ const Admin = () => {
   };
 
   // ❌ Supabase storage removed (UI unchanged)
-  const handleImage = async () => {
-    toast.error("Use image URL instead");
+  const handleImage = async (file: File) => {
+    setUploading(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await axios.post(
+        "http://localhost:5000/api/admin/upload",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      setForm({ ...form, image_url: res.data.url });
+      toast.success("Image uploaded");
+    } catch {
+      toast.error("Upload failed");
+    }
+
+    setUploading(false);
   };
 
   // ✅ SAVE (CREATE / UPDATE)

@@ -20,7 +20,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/cruises", cruiseRoutes);
 app.use("/api/bookings", bookingRoutes);
-
+app.use("/uploads", express.static("uploads"));
 
 mongoose.connect(process.env.MONGO_URI as string)
     .then(() => console.log("MongoDB connected"))
