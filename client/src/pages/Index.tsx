@@ -110,7 +110,13 @@ const Index = () => {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cruises.map((c: any) => (
-              <CruiseCard key={c._id} cruise={c} />
+              <CruiseCard
+                key={c._id}
+                cruise={{
+                  ...c,
+                  id: c._id, // ✅ ADD THIS LINE
+                }}
+              />
             ))}
           </div>
         )}

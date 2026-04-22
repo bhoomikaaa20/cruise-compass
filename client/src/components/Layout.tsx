@@ -34,7 +34,11 @@ const Layout = () => {
 
           <nav className="hidden md:flex items-center gap-8">
             <NavLink to="/" end className={navLink}>Cruises</NavLink>
-            {user && <NavLink to="/bookings" className={navLink}>My Bookings</NavLink>}
+            {user && (
+              <NavLink to="/bookings" className={navLink}>
+                {isAdmin ? "All Bookings" : "My Bookings"}
+              </NavLink>
+            )}
             {isAdmin && <NavLink to="/admin" className={navLink}>Admin</NavLink>}
           </nav>
 
