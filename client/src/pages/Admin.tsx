@@ -171,9 +171,8 @@ const Admin = () => {
     setSaving(false);
   };
 
-  // ✅ DELETE
   const remove = async (id: string) => {
-    if (!confirm("Delete this cruise?")) return;
+
 
     const token = localStorage.getItem("token");
 
@@ -303,7 +302,7 @@ const Admin = () => {
             ) : (
               <div className="space-y-3">
                 {cruises.map((c) => (
-                  <div key={c.id} className="bg-gradient-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-soft">
+                  <div key={c._id} className="bg-gradient-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-soft">
                     <div className="size-14 rounded-lg bg-gradient-hero flex items-center justify-center overflow-hidden flex-shrink-0">
                       {c.image_url ? <img src={c.image_url} alt="" className="w-full h-full object-cover" /> : <Ship className="size-6 text-primary-foreground/60" />}
                     </div>
@@ -314,7 +313,7 @@ const Admin = () => {
                       </p>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => startEdit(c)}><Edit className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => remove(c.id)} className="text-destructive hover:text-destructive">
+                    <Button size="sm" variant="ghost" onClick={() => remove(c._id)} className="text-destructive hover:text-destructive">
                       <Trash2 className="size-4" />
                     </Button>
                   </div>

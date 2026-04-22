@@ -56,15 +56,28 @@ router.get("/my", verifyToken, async (req: AuthRequest, res) => {
 });
 
 // 🔹 Cancel booking
-router.put("/:id/cancel", verifyToken, async (req, res) => {
+router.put("/:id/cancel", verifyToken, async (req: AuthRequest, res) => {
     try {
-        const booking = await Booking.findByIdAndUpdate(
-            req.params.id,
-            { status: "cancelled" },
-            { new: true }
-        );
+        const booking = await Booking.findById(req.params.id);
 
-        res.json(booking);
+        if (!booking) {
+            return res.status(404).json({ msg: "Booking not found" });
+        }
+
+        if (booking.status === "cancelled") {
+            return res.json({ msg: "Already cancelled" });
+        }
+
+        // ✅ UPDATE STATUS
+        booking.status = "cancelled";
+        await booking.save();
+
+        // ✅ INCREASE AVAILABLE SPOTS
+        await Cruise.findByIdAndUpdate(booking.cruise, {
+            $inc: { available_spots: booking.passenger_count }
+        });
+
+        res.json({ msg: "Booking cancelled & slots updated" });
     } catch {
         res.status(500).json({ msg: "Cancel failed" });
     }

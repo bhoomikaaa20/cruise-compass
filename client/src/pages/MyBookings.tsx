@@ -11,7 +11,7 @@ import axios from "axios";
 type BookingRow = any;
 
 const MyBookings = () => {
-  const { user, isAdmin, loading: authLoading } = useAuth(); // ✅ added isAdmin
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -28,7 +28,6 @@ const MyBookings = () => {
       try {
         const token = localStorage.getItem("token");
 
-        // ✅ DIFFERENT API FOR ADMIN
         const url = isAdmin
           ? "http://localhost:5000/api/admin/bookings"
           : "http://localhost:5000/api/bookings/my";
@@ -76,6 +75,46 @@ const MyBookings = () => {
     }
   };
 
+  const deleteBooking = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(`http://localhost:5000/api/admin/bookings/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success("Booking deleted");
+
+      setBookings((b) => b.filter((x) => x._id !== id));
+    } catch {
+      toast.error("Delete failed");
+    }
+  };
+
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.put(
+        `http://localhost:5000/api/admin/bookings/${id}`,
+        { status },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      toast.success("Status updated");
+
+      setBookings((b) =>
+        b.map((x) =>
+          x._id === id ? { ...x, status } : x
+        )
+      );
+    } catch {
+      toast.error("Update failed");
+    }
+  };
+
   const upcoming = bookings.filter(
     (b) =>
       b.status !== "cancelled" &&
@@ -91,7 +130,6 @@ const MyBookings = () => {
           Your account
         </p>
 
-        {/* ✅ DYNAMIC TITLE */}
         <h1 className="font-display text-4xl md:text-5xl">
           {isAdmin ? "All Bookings" : "My Bookings"}
         </h1>
@@ -129,6 +167,8 @@ const MyBookings = () => {
               bookings={upcoming}
               onCancel={cancel}
               isAdmin={isAdmin}
+              updateStatus={updateStatus}       // ✅ FIX
+              deleteBooking={deleteBooking}     // ✅ FIX
             />
           )}
           {past.length > 0 && (
@@ -138,6 +178,8 @@ const MyBookings = () => {
               onCancel={cancel}
               muted
               isAdmin={isAdmin}
+              updateStatus={updateStatus}       // ✅ FIX
+              deleteBooking={deleteBooking}     // ✅ FIX
             />
           )}
         </div>
@@ -152,12 +194,16 @@ const Section = ({
   onCancel,
   muted,
   isAdmin,
+  updateStatus,
+  deleteBooking,
 }: {
   title: string;
   bookings: BookingRow[];
   onCancel: (id: string) => void;
   muted?: boolean;
   isAdmin?: boolean;
+  updateStatus: (id: string, status: string) => void;
+  deleteBooking: (id: string) => void;
 }) => (
   <section>
     <h2 className="font-display text-2xl mb-4">{title}</h2>
@@ -165,11 +211,10 @@ const Section = ({
     <div className="space-y-4">
       {bookings.map((b) => (
         <div
-          key={b._id} // ✅ FIXED
+          key={b._id}
           className={`bg-gradient-card border border-border rounded-2xl p-5 shadow-soft flex flex-col sm:flex-row gap-5 ${muted ? "opacity-70" : ""
             }`}
         >
-          {/* ✅ ADMIN ONLY USER INFO */}
           {isAdmin && (
             <p className="text-xs text-muted-foreground mb-2">
               👤 {b.user?.name} ({b.user?.email})
@@ -219,13 +264,49 @@ const Section = ({
                 value={`$${Number(b.total_price).toLocaleString()}`}
               />
             </div>
+
+            {/* ADMIN BUTTONS (YOUR ORIGINAL UI POSITION) */}
+            {isAdmin && (
+              <div className="flex gap-2 mt-4">
+
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateStatus(b._id, "cancelled")}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => deleteBooking(b._id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-semibold 
+    ${b.status === "confirmed"
+                  ? "bg-green-100 text-green-700"
+                  : b.status === "cancelled"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-yellow-100 text-yellow-700"
+                }`}
+            >
+              {b.status}
+            </span>
           </div>
 
           {b.status === "confirmed" && !muted && !isAdmin && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onCancel(b._id)} // ✅ FIXED
+              onClick={() => onCancel(b._id)}
               className="self-start text-destructive hover:text-destructive"
             >
               <X className="size-4" /> Cancel

@@ -51,4 +51,48 @@ router.put("/bookings/:id", async (req, res) => {
     res.json(booking);
 });
 
+router.delete("/bookings/:id", verifyToken, async (req: AuthRequest, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({ msg: "Access denied" });
+        }
+
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({ msg: "Booking not found" });
+        }
+
+        // ✅ INCREASE AVAILABLE SPOTS
+        await Cruise.findByIdAndUpdate(booking.cruise, {
+            $inc: { available_spots: booking.passenger_count }
+        });
+
+        await booking.deleteOne();
+
+        res.json({ msg: "Booking deleted and slots updated" });
+    } catch {
+        res.status(500).json({ msg: "Delete failed" });
+    }
+});
+
+router.put("/bookings/:id", verifyToken, async (req: AuthRequest, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({ msg: "Access denied" });
+        }
+
+        const { status } = req.body;
+
+        const booking = await Booking.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true }
+        );
+
+        res.json(booking);
+    } catch {
+        res.status(500).json({ msg: "Update failed" });
+    }
+});
 export default router;
