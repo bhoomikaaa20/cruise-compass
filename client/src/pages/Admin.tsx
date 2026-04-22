@@ -359,7 +359,7 @@ const Admin = () => {
           ) : (
             <div className="space-y-3">
               {bookings.map((b) => (
-                <div key={b.id} className="bg-gradient-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-soft">
+                <div key={b._id} className="bg-gradient-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-soft">
                   <div className="flex-1">
                     <p className="font-display text-lg">{b.cruises?.name ?? "Cruise"}</p>
                     <p className="text-sm text-muted-foreground">
@@ -371,8 +371,8 @@ const Admin = () => {
                       : "bg-accent/20 text-accent-foreground"
                     }`}>{b.status}</span>
                   <div className="flex gap-2">
-                    {b.status !== "confirmed" && <Button size="sm" variant="outline" onClick={() => updateBooking(b.id, "confirmed")}>Confirm</Button>}
-                    {b.status !== "cancelled" && <Button size="sm" variant="ghost" onClick={() => updateBooking(b.id, "cancelled")} className="text-destructive">Cancel</Button>}
+                    {b.status !== "confirmed" && <Button size="sm" variant="outline" onClick={() => updateBooking(b._id, "confirmed")}>Confirm</Button>}
+                    {b.status !== "cancelled" && <Button size="sm" variant="ghost" onClick={() => updateBooking(b._id, "cancelled")} className="text-destructive">Cancel</Button>}
                   </div>
                 </div>
               ))}
