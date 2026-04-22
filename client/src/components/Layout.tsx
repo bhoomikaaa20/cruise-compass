@@ -108,6 +108,7 @@ const Layout = () => {
               Curated cruise voyages for the modern traveler.
             </p>
           </div>
+
           <div>
             <h4 className="font-display text-base mb-3">Explore</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -115,8 +116,23 @@ const Layout = () => {
               {user && <li><Link to="/bookings" className="hover:text-primary">My Bookings</Link></li>}
             </ul>
           </div>
+
+          {/* ✅ ONLY THIS PART UPDATED */}
           <div>
             <h4 className="font-display text-base mb-3">Set sail</h4>
+
+            <p className="text-sm text-muted-foreground mb-2">
+              📍 London, United Kingdom
+            </p>
+
+            <p className="text-sm text-muted-foreground mb-2">
+              📞 +44 20 7946 0958
+            </p>
+
+            <p className="text-sm text-muted-foreground mb-3">
+              ✉️ support@mareacruises.com
+            </p>
+
             <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} Marea Cruises. All rights reserved.
             </p>
